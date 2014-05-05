@@ -14,11 +14,14 @@ object RulesSpec extends Specification {
     //import Writes._
 
     val valid = Array("John Doe", "12345", "9393.12")
+    val valid2 = Array("", "12345", "9393.12")
 
     val invalid = Array("Jane Doe", "9999x", "kjdsf")
 
     "extract data" in {
       (Path \ 0).read[Delimited, String].validate(valid) mustEqual(Success("John Doe"))
+      (Path \ 0).read[Delimited, Option[String]].validate(valid2) mustEqual(Success(None))
+      (Path \ 0).read[Delimited, Option[Double]].validate(valid2) mustEqual(Success(Some(9393.12)))
 //      val errPath = Path \ "foo"
 //      val error = Failure(Seq(errPath -> Seq(ValidationError("error.required"))))
 //      errPath.read[JsValue, String].validate(invalid) mustEqual(error)
