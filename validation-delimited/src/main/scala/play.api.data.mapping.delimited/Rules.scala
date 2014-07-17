@@ -2,10 +2,36 @@ package play.api.data.mapping.delimited
 
 import play.api.data.mapping._
 
+/**
+ * Rules for parsing/validating/transforming Array[String] as typically returned from CSV parsers.
+ *
+ * {{
+ *   case class Contact(name: String, email: String, birthday: Option[LocalDate])
+ *
+ *   val contactReads = From[Delimited] { __ => (
+ *     (__ \ 0).read[String] and
+ *     (__ \ 1).read(email) and
+ *     (__ \ 2).read(optionR[LocalDate](equalTo("N/A")))
+ *   )(Contact)}
+ *
+ *   val csv1 = "Ian Hummel,ian@example.com,1981-07-24".split(",")
+ *   val csv2 = "Jane Doe,jane@example.com,N/A".split(",")
+ *
+ *   contactReads.validate(csv1) // returns Success(Contact("Ian Hummel", "ian@example.com", Some(new LocalDate(1981, 7, 24))))
+ *   contactReads.validate(csv2) // returns Success(Contact("Jane Doe", "jane@example.com", None))
+ * }}
+ */
 object Rules extends DefaultRules[Delimited] with ParsingRules {
-  import scala.language.implicitConversions
-  import scala.language.higherKinds
+  import scala.language.{higherKinds, implicitConversions}
 
+  /**
+   * Extract the value at a given index, transforming it into a given type.
+   *
+   * @param p  An index into the array
+   * @param r  A [[Rule]] for converting the value from String to O
+   * @tparam O The desired type for the value
+   * @return   Failure if the index is out of bounds or the [[Path]] was not an [[IdxPathNode]]
+   */
   implicit def pick[O](p: Path)(implicit r: RuleLike[String, O]): Rule[Delimited, O] =
     Rule[Delimited, String] { delimited =>
       p.path match {
@@ -14,68 +40,54 @@ object Rules extends DefaultRules[Delimited] with ParsingRules {
       }
     }.compose(r)
 
-  implicit def ooo[O](p: Path)(implicit pick: Path => RuleLike[Delimited, String], coerce: RuleLike[String, O]): Rule[Delimited, Option[O]] =
-    myOpt(coerce, equalTo(""))(pick)(p)
+  /**
+   * By default, the empty string "" will be considered as None for Option reads
+   */
+  private val isEmpty = validateWith[String]("error.present") { _.isEmpty }
 
-  protected def myOpt[O](r: => RuleLike[String, O], noneValues: RuleLike[String, String]*)(implicit pick: Path => RuleLike[Delimited, String]) = (path: Path) =>
-    Rule[Delimited, Option[O]] { delimited =>
-      val isNone = not(noneValues.foldLeft(Rule.zero[String])(_ compose not(_))).fmap(_ => None)
-      val v = (pick(path).validate(delimited).map(Some.apply) orElse Success(None))
-      v.viaEither {
-        _.right.flatMap {
-          case None => Right(None)
-          case Some(i) => isNone.orElse(Rule.toRule(r).fmap[Option[O]](Some.apply)).validate(i).asEither
-        }
-      }
-    }
+  /**
+   * Read an optional value using the specified value/rules to determine what is considered None vs what is Some(_).
+   *
+   * @param noneValues Rules for determining if a value should be None
+   * @param pick       Function to extract a value from a given index
+   * @param coerce     Coerce the value from String to type O
+   * @tparam O         The desired type for the value
+   * @return           The optional value
+   */
+  def optionR[O](noneValues: RuleLike[String, String]*)(implicit pick: Path => RuleLike[Delimited, String], coerce: RuleLike[String, O]): Path => Rule[Delimited, Option[O]] =
+    myOpt[O](coerce, noneValues: _*)
 
-  /*
-  implicit def ooo[O](p: Path)(implicit pick: Path => RuleLike[Delimited, String], coerce: RuleLike[String, O]): Rule[Delimited, Option[O]] =
-    Rule[Delimited, O] { delimited =>
-      val sval = (pick(p).validate(delimited).map {
-        case s @ "" => Success(None)
-        case s      => Success(Some(s))
-      }
-    }
-
-
-  protected def opt[J, O](r: => RuleLike[J, O], noneValues: RuleLike[I, I]*)(implicit pick: Path => RuleLike[I, I], coerce: RuleLike[I, J]) = (path: Path) =>
-    Rule[I, Option[O]] {
-      (d: I) =>
-        val isNone = not(noneValues.foldLeft(Rule.zero[I])(_ compose not(_))).fmap(_ => None)
-        val v = (pick(path).validate(d).map(Some.apply) orElse Success(None))
+  /**
+   * Function for creating a mapping from indexes to [[Rule]]s which read optional values from an Array[String].
+   *
+   * @param coerce     Coerce the value from String to type O
+   * @param noneValues Rules for determining if a value should be None
+   * @param pick       Function to extract a value from a given index
+   * @tparam O         The desired type for the value
+   * @return           The optional value
+   */
+  private def myOpt[O](coerce: => RuleLike[String, O], noneValues: RuleLike[String, String]*)(implicit pick: Path => RuleLike[Delimited, String]) =
+    (path: Path) =>
+      Rule[Delimited, Option[O]] { delimited =>
+        val isNone = not(noneValues.foldLeft(Rule.zero[String])(_ compose not(_))).fmap(_ => None)
+        val v = (pick(path).validate(delimited).map(Some.apply) orElse Success(None))
         v.viaEither {
           _.right.flatMap {
             case None => Right(None)
-            case Some(i) => isNone.orElse(Rule.toRule(coerce).compose(r).fmap[Option[O]](Some.apply)).validate(i).asEither
+            case Some(i) => isNone.orElse(Rule.toRule(coerce).fmap[Option[O]](Some.apply)).validate(i).asEither
           }
         }
-    }
-    */
+      }
 
-  //implicit def ooo[O](p: Path)(implicit pick: Path => RuleLike[JsValue, JsValue], coerce: RuleLike[JsValue, O]): Rule[JsValue, Option[O]] =
-  //  optionR(Rule.zero[O])(pick, coerce)(p)
-
-  /*
-  def optionR[J, O](r: => RuleLike[J, O], noneValues: RuleLike[JsValue, JsValue]*)(implicit pick: Path => RuleLike[JsValue, JsValue], coerce: RuleLike[JsValue, J]): Path => Rule[JsValue, Option[O]] =
-    super.opt[J, O](r, (jsNullR.fmap(n => n: JsValue) +: noneValues): _*)
-  */
-
-  //(pick(p).map(.validate(d).map(Some.apply) orElse Success(None))
-
-  /*
-  private val isEmpty = validateWith[PM]("validation.empty") { pm =>
-    pm.filter { case (_, vs) => !vs.isEmpty }.isEmpty
-  }
-  implicit def optionR[O](implicit pick: Path => RuleLike[PM, PM], coerce: RuleLike[PM, O]): Path => Rule[PM, Option[O]] =
-    opt(coerce, isEmpty)
-
-  def optionR[J, O](r: => RuleLike[J, O], noneValues: RuleLike[PM, PM]*)(implicit pick: Path => RuleLike[PM, PM], coerce: RuleLike[PM, J]): Path => Rule[UrlFormEncoded, Option[O]] =
-    path => {
-      val nones = isEmpty +: noneValues
-      val o = opt[J, O](r, nones: _*)(pick, coerce)(path)
-      Rule.zero[UrlFormEncoded].fmap(toPM).compose(o)
-    }
-    */
-
+  /**
+   * An implicit defining a default [[Option]] reader.  Uses "" as the empty value.
+   *
+   * @param p      An index into the array
+   * @param pick   Function to extract a value from a given index
+   * @param coerce Coerce the value from String to type O
+   * @tparam O     The desired type for the value
+   * @return       The optional value
+   */
+  implicit def ooo[O](p: Path)(implicit pick: Path => RuleLike[Delimited, String], coerce: RuleLike[String, O]): Rule[Delimited, Option[O]] =
+    optionR(isEmpty)(pick, coerce)(p)
 }

@@ -1,60 +1,43 @@
 package play.api.data.mapping.delimited
 
+import org.joda.time.LocalDate
 import org.specs2.mutable._
-import play.api.data.mapping.{Path, From, Success}
+import play.api.data.mapping.{From, Path, Success}
+import play.api.data.mapping.delimited.Rules._
 
 class RulesSpec extends Specification {
   "Rules" should {
-    val example = Array("foo", "1.2", "100")
+    "demonstrate typical usage" in {
+      case class Contact(name: String, email: String, birthday: Option[LocalDate])
 
-//    "parse data types" in {
-//      From[Delimited] { __ =>
-//        (
-//          (__ \ 0).read[String] ~
-//          (__ \ 1).read[Double] ~
-//          (__ \ 2).read[Int]
-//        ).tupled
-//      }.validate(example) mustEqual(Success(("foo", 1.2, 100)))
-//    }
+      val contactReads = From[Delimited] { __ ⇒ (
+        (__ \ 0).read[String] and
+        (__ \ 1).read(email) and
+        (__ \ 2).read(optionR[LocalDate](Rules.equalTo("N/A")))
+      )(Contact)}
 
-    val valid = Array("John Doe", "12345", "9393.12")
-    val valid2 = Array("", "12345", "9393.12")
+      val csv1 = "Ian Hummel,ian@example.com,1981-07-24"
+      val csv2 = "Jane Doe,jane@example.com,N/A"
 
-    val invalid = Array("Jane Doe", "9999x", "kjdsf")
-
-    "extract data" in {
-      (Path \ 0).read[Delimited, String].validate(valid) mustEqual(Success("John Doe"))
-      (Path \ 1).read[Delimited, Long].validate(valid) mustEqual(Success(12345))
-      (Path \ 2).read[Delimited, Double].validate(valid) mustEqual(Success(9393.12))
+      contactReads.validate(csv1.split(",")) mustEqual Success(Contact("Ian Hummel", "ian@example.com", Some(new LocalDate(1981, 7, 24))))
+      contactReads.validate(csv2.split(",")) mustEqual Success(Contact("Jane Doe", "jane@example.com", None))
     }
 
-    "validate options" in {
-      (Path \ 0).read[Delimited, Option[String]].validate(valid2) mustEqual(Success(None))
-      (Path \ 1).read[Delimited, Option[Long]].validate(valid2) mustEqual(Success(Some(12345)))
-      (Path \ 2).read[Delimited, Option[Double]].validate(valid2) mustEqual(Success(Some(9393.12)))
+    "read optional values" in {
+      val str = Array("John Doe", "", "foo", "9393.12")
+      (Path \ 0).read[Delimited, String].validate(str) mustEqual Success("John Doe")
+      (Path \ 1).read[Delimited, Option[String]].validate(str) mustEqual Success(None)
+      (Path \ 2).read[Delimited, Option[String]].validate(str) mustEqual Success(Some("foo"))
+      (Path \ 3).read[Delimited, Double].validate(str) mustEqual Success(9393.12)
     }
 
-    "validate data" in {
+    "read optional values using a different rule" in {
+      val str = Array("John Doe", "\\N", "", "9393.12")
 
-      case class Contact(name: String, int: Int, double: Double)
-
-      val w = From[Delimited] { __ =>
-        ((__ \ 0).read[String] and
-          (__ \ 1).read[Int] and
-          (__ \ 2).read[Double])(Contact)
-      }
-
-      w.validate(valid) mustEqual(Success(Contact("John Doe", 12345, 9393.12)))
+      (Path \ 0).read[Delimited, String].validate(str) mustEqual Success("John Doe")
+      (Path \ 1).read(optionR(Rules.equalTo("\\N"))).validate(str) mustEqual Success(None)
+      (Path \ 2).read(optionR(Rules.equalTo("\\N"))).validate(str) mustEqual Success(Some(""))
+      (Path \ 3).read[Delimited, Double].validate(str) mustEqual Success(9393.12)
     }
-
-    /*
-    "return optional values" in {
-      val input = Array("string", "1.9", "20123", "")
-    }
-
-    "optionally ignore extra columns" in {
-      val input = Array("string", "1.9", "20123", "ignore")
-    }
-    */
   }
 }
