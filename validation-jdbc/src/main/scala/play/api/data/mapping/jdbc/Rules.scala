@@ -12,17 +12,32 @@ import scala.util.Try
 import play.api.data.mapping._
 
 object Rules extends DefaultRules[ResultSet] {
-  implicit def pickString[O](p: Path)(implicit r: RuleLike[String, O]): Rule[ResultSet, O] = {
-    def extractString(p: Path, rs: ResultSet): Option[String] = p.path match {
-      case IdxPathNode(i) :: _ ⇒ Try(rs.getString(i)).toOption
-      case KeyPathNode(column) :: _ ⇒ Try(rs.getString(column)).toOption
-    }
+  implicit def stringGI(rs: ResultSet): Int ⇒ String = rs.getString
+  implicit def stringGC(rs: ResultSet): String ⇒ String = rs.getString
 
-    Rule[ResultSet, String] { rs ⇒
-      extractString(p, rs) match {
-        case None    ⇒ Failure(Seq(p -> Seq(ValidationError("error.required"))))
-        case Some(s) ⇒ Success(s)
-      }
-    }.compose(r)
-  }
+  implicit def intGI(rs: ResultSet): Int ⇒ Int = rs.getInt
+  implicit def intGC(rs: ResultSet): String ⇒ Int = rs.getInt
+
+//  implicit def pick[Intermediate, Output](p: Path)(implicit e1: ResultSet ⇒ Int ⇒ Intermediate, e2: ResultSet ⇒ String ⇒ Intermediate, coerce: RuleLike[Intermediate, Output]): Rule[ResultSet, Output] = {
+//
+//    def atIndex(i: Int, extract: Int ⇒ Intermediate): VA[Intermediate] = Try(extract(i)) match {
+//      case scala.util.Success(s) ⇒ Success(s)
+//      case scala.util.Failure(e: SQLException) ⇒ Failure(Seq(p -> Seq(ValidationError("error.sql", e.getMessage, e.getErrorCode))))
+//      case scala.util.Failure(e) ⇒ Failure(Seq(p -> Seq(ValidationError("error.required"))))
+//    }
+//
+//    def atColumn(c: String, extract: String ⇒ Intermediate): VA[Intermediate] = Try(extract(c)) match {
+//      case scala.util.Success(s) ⇒ Success(s)
+//      case scala.util.Failure(e: SQLException) ⇒ Failure(Seq(p -> Seq(ValidationError("error.sql", e.getMessage, e.getErrorCode))))
+//      case scala.util.Failure(e) ⇒ Failure(Seq(p -> Seq(ValidationError("error.required"))))
+//    }
+//
+//    Rule[ResultSet, Intermediate] { rs ⇒
+//      p.path match {
+//        case IdxPathNode(i) :: _ ⇒ atIndex(i, rs)
+//        case KeyPathNode(c) :: _ ⇒ atColumn(c, rs)
+//      }
+//    }.compose(coerce)
+//  }
+
 }

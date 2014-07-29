@@ -44,13 +44,6 @@ object RulesSpec extends Specification with Mockito {
       val query = "select * from people where name = 'Ian'"
       val rs = statement.executeQuery(query)
       rs.next()
-
-      println("HERE")
-      val unknown = rs.getBoolean("asdfsaf")
-      println(s"unknown is ${unknown}")
-      println("/HERE")
-
-
       rs
     }
 
