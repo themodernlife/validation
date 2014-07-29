@@ -1,0 +1,81 @@
+/**
+ * Copyright (C) 2014 MediaMath <http://www.mediamath.com>
+ *
+ * @author ihummel
+ */
+package play.api.data.mapping.jdbc
+
+import java.sql.{DriverManager, ResultSet}
+
+import org.specs2.mock._
+import org.specs2.mutable._
+import play.api.data.mapping._
+import play.api.data.mapping.jdbc.Rules._
+
+object RulesSpec extends Specification with Mockito {
+
+  "Rules" should {
+    val ddl =
+      """
+        |create table people (
+        |  name varchar(64) not null,
+        |  email varchar(64) not null,
+        |  age integer,
+        |  per_hour double,
+        |  us_citizen boolean
+        |)
+      """.stripMargin
+
+    val inserts =
+      """
+        | insert into people values ('Ian', 'ian@example.com', 33, 4.25, true);
+        | insert into people values ('Joe', 'joe@example.com', 21, 5.25, false);
+        | insert into people values ('Jill', 'jill@example.com', 43, 9.25, false);
+      """.stripMargin
+
+    val driver = Class.forName("org.hsqldb.jdbcDriver")
+    val connection = DriverManager.getConnection("jdbc:hsqldb:mem:unit-test", "", "")
+    val statement = connection.createStatement()
+
+    statement.execute(ddl);
+    statement.execute(inserts);
+
+    val resultSet = {
+      val query = "select * from people where name = 'Ian'"
+      val rs = statement.executeQuery(query)
+      rs.next()
+
+      println("HERE")
+      val unknown = rs.getBoolean("asdfsaf")
+      println(s"unknown is ${unknown}")
+      println("/HERE")
+
+
+      rs
+    }
+
+    println(s"ResulSet is ${resultSet}")
+
+    "extract data using column names" in {
+      From[ResultSet] { __ =>
+        (__ \ "name").read[String]
+      }.validate(resultSet) mustEqual(Success("Ian"))
+
+      val error = Failure(Seq((Path \ "foo") -> Seq(ValidationError("error.required"))))
+      From[ResultSet] { __ =>
+        (__ \ "foo").read[String]
+      }.validate(resultSet) mustEqual(error)
+    }
+
+    "extract data using column indices" in {
+      From[ResultSet] { __ =>
+        (__ \ 1).read[String]
+      }.validate(resultSet) mustEqual(Success("Ian"))
+
+      val error = Failure(Seq((Path \ 10) -> Seq(ValidationError("error.required"))))
+      From[ResultSet] { __ =>
+        (__ \ 10).read[String]
+      }.validate(resultSet) mustEqual(error)
+    }
+  }
+}

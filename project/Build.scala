@@ -66,6 +66,10 @@ object Dependencies {
       "org.scala-lang" % "scala-reflect" % scalaVersion.value,
       "com.typesafe.play" %% "play-functional" % playVersion,
       "com.typesafe.play" %% "play-json" % playVersion))
+
+  val jdbcDeps = Seq(
+    libraryDependencies += "org.hsqldb" % "hsqldb" % "2.3.2" % "test"
+  )
 }
 
 object ValidationBuild extends Build {
@@ -94,6 +98,12 @@ object ValidationBuild extends Build {
     .settings(specsDep: _*)
     .dependsOn(core)
 
+  lazy val jdbc = Project("validation-jdbc", file("validation-jdbc"))
+    .settings(commonSettings: _*)
+    .settings(specsDep: _*)
+    .settings(jdbcDeps: _*)
+    .dependsOn(core)
+
   lazy val experimental = Project("validation-experimental", file("validation-experimental"))
     .settings(commonSettings: _*)
     .settings(shapelessDep: _*)
@@ -101,7 +111,7 @@ object ValidationBuild extends Build {
     .dependsOn(core)
 
   lazy val root = project.in(file("."))
-    .aggregate(core, json, form, experimental)
+    .aggregate(core, json, form, jdbc, experimental)
     .settings(scalaVersions: _*)
     .settings(publishArtifact := false)
 }
