@@ -31,6 +31,7 @@ object RulesSpec extends Specification with Mockito {
         | insert into people values ('Ian', 'ian@example.com', 33, 4.25, true);
         | insert into people values ('Joe', 'joe@example.com', 21, 5.25, false);
         | insert into people values ('Jill', 'jill@example.com', 43, 9.25, false);
+        | insert into people values ('Nils', 'nils@example.com', NULL, NULL, NULL);
       """.stripMargin
 
     val driver = Class.forName("org.hsqldb.jdbcDriver")
@@ -69,6 +70,38 @@ object RulesSpec extends Specification with Mockito {
       From[ResultSet] { __ =>
         (__ \ 10).read[String]
       }.validate(resultSet) mustEqual(error)
+    }
+
+    /*
+    name varchar(64) not null,
+  email varchar(64) not null,
+  age integer,
+  per_hour double,
+  us_citizen boolean
+     */
+
+    "read people" in {
+      case class Person(name: String, email: String, age: Int, perHour: Double, isUsCitizen: Boolean)
+
+      From[ResultSet] { __ =>
+        ((__ \ "name").read[String] ~
+        (__ \ "email").read[String] ~
+        (__ \ "age").read[Int] ~
+        (__ \ "per_hour").read[Double] ~
+        (__ \ "us_citizen").read[Boolean])(Person)
+      }.validate(resultSet) mustEqual(Success(Person("Ian", "ian@example.com", 33, 4.25, true)))
+    }
+
+    "read options" in {
+      case class Person(name: String, email: String, age: Option[Int], perHour: Option[Double], isUsCitizen: Option[Boolean])
+
+      From[ResultSet] { __ =>
+        ((__ \ "name").read[String] ~
+          (__ \ "email").read[String] ~
+          (__ \ "age").read[Option[Int]] ~
+          (__ \ "per_hour").read[Option[Double]] ~
+          (__ \ "us_citizen").read[Option[Boolean]])(Person)
+      }.validate(resultSet) mustEqual(Success(Person("Nils", "nils@example.com", None, None, None)))
     }
   }
 }

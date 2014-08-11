@@ -77,10 +77,10 @@ object ValidationBuild extends Build {
   import BuildSettings._
   import Dependencies._
 
-  lazy val docs = Project("validation-docs", file("validation-docs"))
-    .settings(Docs.settings: _*)
-    .settings(docDep: _*)
-    .settings(specsDep: _*)
+//  lazy val docs = Project("validation-docs", file("validation-docs"))
+//    .settings(Docs.settings: _*)
+//    .settings(docDep: _*)
+//    .settings(specsDep: _*)
 
   lazy val core = Project("validation-core", file("validation-core"))
     .settings(commonSettings: _*)
