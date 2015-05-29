@@ -71,7 +71,7 @@ object Dependencies {
   })
 
   val docDep = libraryDependencies +=
-    "com.typesafe.play" %% "play-doc" % "1.0.3"
+    "com.typesafe.play" %% "play-doc" % "1.2.0" //wtf...
 
   val specsDep = libraryDependencies +=
     "org.specs2" %% "specs2" % "2.3.12" % "test"
