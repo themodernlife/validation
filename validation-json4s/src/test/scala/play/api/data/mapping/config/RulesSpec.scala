@@ -11,23 +11,32 @@ object RulesSpec extends Specification {
   "Config Rules" should {
     import Rules._
 
-//    val valid = JObject(
-//      "firstname" -> JString("Julien"),
-//      "lastname" -> JString("Tournay"),
-//      "age" -> JInt(27),
-//      "informations" -> JObject(
-//        "label" -> JString("Personal"),
-//        "email" -> JString("fakecontact@gmail.com"),
-//        "phones" -> JArray(List(JString("01.23.45.67.89"), JString("98.76.54.32.10")))))
-//
-//    val invalid = JObject(
-//      "firstname" -> JString("Julien"),
-//      "lastname" -> JString("Tournay"),
-//      "age" -> JInt(27),
-//      "informations" -> JObject(
-//        "label" -> JString(""),
-//        "email" -> JString("fakecontact@gmail.com"),
-//        "phones" -> JArray(List(JString("01.23.45.67.89"), JString("98.76.54.32.10")))))
+    implicit def string2Config(s: String) = ConfigFactory.parseString(s)
+
+    val valid: Config =
+      """
+        |firstname = Julien
+        |lastname = Tournay
+        |age = 27
+        |informations {
+        | label = Personal
+        | email = "fakecontact@gmail.com"
+        | phones = [ "01.23.45.67.89", "98.76.54.32.10" ]
+        |}
+      """.stripMargin
+
+    val invalid: Config =
+      """
+        |firstname = Julien
+        |lastname = Tournay
+        |age = 27
+        |informations {
+        | label = ""
+        | email = "fakecontact@gmail.com"
+        | phones = [ "01.23.45.67.89", "98.76.54.32.10" ]
+        |}
+      """.stripMargin
+
 
 //    "extract data" in {
 //      (Path \ "firstname").read[JValue, String].validate(valid) mustEqual(Success("Julien"))
@@ -36,15 +45,15 @@ object RulesSpec extends Specification {
 //      errPath.read[JValue, String].validate(invalid) mustEqual(error)
 //    }
 
-    "support checked" in {
-      val good = ConfigFactory.empty().withValue("issmth", ConfigValueFactory.fromAnyRef(true)).root()
-      val bad = ConfigFactory.empty().withValue("issmth", ConfigValueFactory.fromAnyRef(false)).root()
-      val ugly = ConfigFactory.empty().root()
-      val p = Path \ "issmth"
-      p.from[ConfigValue](checked).validate(good) mustEqual(Success(true))
-      p.from[ConfigValue](checked).validate(bad) mustEqual(Failure(Seq(Path \ "issmth" -> Seq(ValidationError("error.equals", true)))))
-      p.from[ConfigValue](checked).validate(ugly) mustEqual(Failure(Seq(Path \ "issmth" -> Seq(ValidationError("error.required")))))
-    }
+//    "support checked" in {
+//      val good = ConfigFactory.empty().withValue("issmth", ConfigValueFactory.fromAnyRef(true))
+//      val bad = ConfigFactory.empty().withValue("issmth", ConfigValueFactory.fromAnyRef(false))
+//      val ugly = ConfigFactory.empty()
+//      val p = Path \ "issmth"
+//      p.from[Config](checked).validate(good) mustEqual(Success(true))
+//      p.from[Config](checked).validate(bad) mustEqual(Failure(Seq(Path \ "issmth" -> Seq(ValidationError("error.equals", true)))))
+//      p.from[Config](checked).validate(ugly) mustEqual(Failure(Seq(Path \ "issmth" -> Seq(ValidationError("error.required")))))
+//    }
 
 //    "support all types of Config values" in {
 //
@@ -54,44 +63,52 @@ object RulesSpec extends Specification {
 //        (Path \ "n").read[JValue, JNull.type].validate(JObject("n" -> JDecimal(4.8))) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.invalid", "null")))))
 //      }
 //
-//      "Int" in {
-//        (Path \ "n").read[JValue, Int].validate(JObject("n" -> JInt(4))) mustEqual(Success(4))
-//        (Path \ "n").read[JValue, Int].validate(JObject("n" -> JString("foo"))) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "Int")))))
-//        (Path \ "n").read[JValue, Int].validate(JObject("n" -> JDecimal(4.8))) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "Int")))))
-//        (Path \ "n" \ "o").read[JValue, Int].validate(JObject("n" -> JObject("o" -> JInt(4)))) mustEqual(Success(4))
-//        (Path \ "n" \ "o").read[JValue, Int].validate(JObject("n" -> JObject("o" -> JString("foo")))) mustEqual(Failure(Seq(Path \ "n" \ "o" -> Seq(ValidationError("error.number", "Int")))))
-//
-//        (Path \ "n" \ "o" \ "p" ).read[JValue, Int].validate(JObject("n" -> JObject("o" -> JObject("p" -> JInt(4))))) mustEqual(Success(4))
-//        (Path \ "n" \ "o" \ "p").read[JValue, Int].validate(JObject("n" -> JObject("o" -> JObject("p" -> JString("foo"))))) mustEqual(Failure(Seq(Path \ "n" \ "o" \ "p" -> Seq(ValidationError("error.number", "Int")))))
-//
-//        val errPath = Path \ "foo"
-//        val error = Failure(Seq(errPath -> Seq(ValidationError("error.required"))))
-//        errPath.read[JValue, Int].validate(JObject("n" -> JInt(4))) mustEqual(error)
-//      }
-//
-//      "Short" in {
-//        (Path \ "n").read[JValue, Short].validate(JObject("n" -> JInt(4))) mustEqual(Success(4))
-//        (Path \ "n").read[JValue, Short].validate(JObject("n" -> JString("foo"))) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "Short")))))
-//        (Path \ "n").read[JValue, Short].validate(JObject("n" -> JDecimal(4.8))) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "Short")))))
-//      }
-//
-//      "Long" in {
-//        (Path \ "n").read[JValue, Long].validate(JObject("n" -> JInt(4))) mustEqual(Success(4))
-//        (Path \ "n").read[JValue, Long].validate(JObject("n" -> JString("foo"))) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "Long")))))
-//        (Path \ "n").read[JValue, Long].validate(JObject("n" -> JDecimal(4.8))) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "Long")))))
-//      }
-//
-//      "Float" in {
-//        (Path \ "n").read[JValue, Float].validate(JObject("n" -> JInt(4))) mustEqual(Success(4))
-//        (Path \ "n").read[JValue, Float].validate(JObject("n" -> JString("foo"))) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "Float")))))
-//        (Path \ "n").read[JValue, Float].validate(JObject("n" -> JDecimal(4.8))) mustEqual(Success(4.8F))
-//      }
-//
-//      "Double" in {
-//        (Path \ "n").read[JValue, Double].validate(JObject("n" -> JInt(4))) mustEqual(Success(4))
-//        (Path \ "n").read[JValue, Double].validate(JObject("n" -> JString("foo"))) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "Double")))))
-//        (Path \ "n").read[JValue, Double].validate(JObject("n" -> JDecimal(4.8))) mustEqual(Success(4.8))
-//      }
+    "Int" in {
+      (Path \ "n").read[Config, Int].validate("n = 4") mustEqual(Success(4))
+      // NOTE: Typesafe Config discards the fractional part if an Int is requested
+      (Path \ "n").read[Config, Int].validate("n = 4.8") mustEqual(Success(4))
+      (Path \ "n").read[Config, Int].validate("n = foo") mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "Int")))))
+      (Path \ "n" \ "o").read[Config, Int].validate("n { o = 4 }") mustEqual(Success(4))
+      (Path \ "n" \ "o").read[Config, Int].validate("n { o = foo }") mustEqual(Failure(Seq(Path \ "n" \ "o" -> Seq(ValidationError("error.number", "Int")))))
+
+      (Path \ "n" \ "o" \ "p").read[Config, Int].validate("n { o { p = 4 } }") mustEqual(Success(4))
+      (Path \ "n" \ "o" \ "p").read[Config, Int].validate("n { o { p = foo } }") mustEqual(Failure(Seq(Path \ "n" \ "o" \ "p" -> Seq(ValidationError("error.number", "Int")))))
+
+      val errPath = Path \ "foo"
+      val error = Failure(Seq(errPath -> Seq(ValidationError("error.required"))))
+      errPath.read[Config, Int].validate("n = 4") mustEqual(error)
+    }
+
+    "Short" in {
+      (Path \ "n").read[Config, Short].validate("n = 4") mustEqual(Success(4))
+      (Path \ "n").read[Config, Short].validate("n = 4.8") mustEqual(Success(4))
+      (Path \ "n").read[Config, Short].validate("n = foo") mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "Short")))))
+    }
+
+    "Long" in {
+      (Path \ "n").read[Config, Long].validate("n = 4") mustEqual(Success(4))
+      (Path \ "n").read[Config, Short].validate("n = 4.8") mustEqual(Success(4))
+      (Path \ "n").read[Config, Long].validate("n = foo") mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "Long")))))
+    }
+
+    "Float" in {
+      (Path \ "n").read[Config, Float].validate("n = 4") mustEqual(Success(4))
+      (Path \ "n").read[Config, Float].validate("n = 4.8") mustEqual(Success(4.8F))
+      (Path \ "n").read[Config, Float].validate("n = foo") mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "Float")))))
+    }
+
+    "Double" in {
+      (Path \ "n").read[Config, Double].validate("n = 4") mustEqual(Success(4))
+      (Path \ "n").read[Config, Double].validate("n = 4.8") mustEqual(Success(4.8))
+      (Path \ "n").read[Config, Double].validate("n = foo") mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "Double")))))
+    }
+
+//    "java Number" in {
+//      import java.math.{ BigDecimal => jBigDecimal }
+//      (Path \ "n").read[JValue, jBigDecimal].validate(JObject("n" -> JInt(4))) mustEqual(Success(new jBigDecimal("4")))
+//      (Path \ "n").read[JValue, jBigDecimal].validate(JObject("n" -> JString("foo"))) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.number", "BigDecimal")))))
+//      (Path \ "n").read[JValue, jBigDecimal].validate(JObject("n" -> JDecimal(4.8))) mustEqual(Success(new jBigDecimal("4.8")))
+//    }
 //
 //      "java BigDecimal" in {
 //        import java.math.{ BigDecimal => jBigDecimal }
@@ -153,17 +170,16 @@ object RulesSpec extends Specification {
 //        (Path \ "n").from[JValue](Rules.sqlDate).validate(JObject("n" -> JString("1985-09-10"))) mustEqual(Success(ds))
 //      }
 //
-//      "Boolean" in {
-//        (Path \ "n").read[JValue, Boolean].validate(JObject("n" -> JBool(true))) mustEqual(Success(true))
-//        (Path \ "n").read[JValue, Boolean].validate(JObject("n" -> JString("foo"))) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.invalid", "Boolean")))))
-//      }
-//
-//      "String" in {
-//        (Path \ "n").read[JValue, String].validate(JObject("n" -> JString("foo"))) mustEqual(Success("foo"))
-//        (Path \ "n").read[JValue, String].validate(JObject("n" -> JInt(42))) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.invalid", "String")))))
-//        (Path \ "n").read[JValue, String].validate(JObject("n" -> JArray(List(JString("foo"))))) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.invalid", "String")))))
-//        (Path \ "o").read[JValue, String].validate(JObject("o" -> JObject("n" -> JString("foo")))) mustEqual(Failure(Seq(Path \ "o" -> Seq(ValidationError("error.invalid", "String")))))
-//      }
+      "Boolean" in {
+        (Path \ "n").read[Config, Boolean].validate("n = true")) mustEqual(Success(true))
+        (Path \ "n").read[Config, Boolean].validate("n = foo")) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.invalid", "Boolean")))))
+      }
+
+      "String" in {
+        (Path \ "n").read[Config, String].validate("n = foo")) mustEqual(Success("foo"))
+        (Path \ "n").read[Config, String].validate("n = [foo]")) mustEqual(Failure(Seq(Path \ "n" -> Seq(ValidationError("error.invalid", "String")))))
+        (Path \ "o").read[Config, String].validate("o { foo = bar }")) mustEqual(Failure(Seq(Path \ "o" -> Seq(ValidationError("error.invalid", "String")))))
+      }
 //
 //      "JObject" in {
 //        (Path \ "o").read[JValue, JObject].validate(JObject("o" -> JObject("n" -> JString("foo")))) mustEqual(Success(JObject("n" -> JString("foo"))))
@@ -239,12 +255,12 @@ object RulesSpec extends Specification {
 //    "validate deep" in {
 //      val p = (Path \ "informations" \ "label")
 //
-//      From[JValue] { __ =>
+//      From[Config] { __ =>
 //        (__ \ "informations").read(
 //          (__ \ "label").read(notEmpty))
 //      }.validate(valid) mustEqual(Success("Personal"))
 //
-//      From[JValue] { __ =>
+//      From[Config] { __ =>
 //        (__ \ "informations").read(
 //          (__ \ "label").read(notEmpty))
 //      }.validate(invalid) mustEqual(Failure(Seq(p -> Seq(ValidationError("error.required")))))

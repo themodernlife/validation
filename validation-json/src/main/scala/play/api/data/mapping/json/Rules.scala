@@ -102,6 +102,11 @@ object Rules extends play.api.data.mapping.DefaultRules[JsValue] {
   implicit def JsValue[O](implicit r: RuleLike[JsObject, O]): Rule[JsValue, O] =
     jsObjectR.compose(r)
 
+
+  implicit def booleanPick(p: Path) = {
+
+  }
+
   implicit def pickInJson[II <: JsValue, O](p: Path)(implicit r: RuleLike[JsValue, O]): Rule[II, O] = {
 
     def search(path: Path, json: JsValue): Option[JsValue] = path.path match {
